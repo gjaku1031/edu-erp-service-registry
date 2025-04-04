@@ -1,70 +1,92 @@
-# 🌉 API Gateway 역할과 구조
+# 🔍 Service Registry (Eureka Server)
 
-## 🚀 API Gateway 핵심 기능
+## 📋 프로젝트 개요
+이 서비스는 Spring Cloud Netflix Eureka를 기반으로 한 서비스 레지스트리로, 마이크로서비스 아키텍처에서 서비스 디스커버리 기능을 제공합니다.
 
-- **🔄 단일 진입점**: 모든 클라이언트 요청을 한 곳에서 받아 적절한 서비스로 전달
-- **🧭 요청 라우팅**: URL 경로 기반으로 요청을 해당 마이크로서비스로 라우팅
-- **🔐 인증 및 권한 부여**: JWT 토큰 검증 등 중앙화된 보안 처리
-- **⚖️ 부하 분산**: 여러 서비스 인스턴스에 요청 분산
-- **🔄 프로토콜 변환**: 외부-내부 간 통신 프로토콜 변환
-- **💾 응답 캐싱**: 성능 향상을 위한 데이터 캐싱
+## 🚀 주요 기능
 
-## 🧩 주요 컴포넌트
+- **📊 서비스 등록**: 모든 마이크로서비스가 시작 시 자신의 정보를 등록
+- **🔍 서비스 발견**: 서비스 간 통신 시 서비스 이름으로 대상 서비스를 찾을 수 있음
+- **🔄 상태 모니터링**: 등록된 서비스의 상태(UP/DOWN)를 지속적으로 모니터링
+- **⚖️ 로드 밸런싱**: 클라이언트 측 로드 밸런싱 지원
+- **🛡️ 장애 내성**: 단일 서비스 인스턴스 실패 시에도 시스템 가용성 유지
 
-- **🛡️ SecurityConfig**: 보안 설정 (CORS, 권한, OAuth2, JWT)
-- **🔍 JwtAuthenticationFilter**: 모든 요청의 JWT 토큰 검증
-- **📦 의존성**: Spring Cloud Gateway, Security, OAuth2, WebFlux
+## 🛠️ 기술 스택
 
-## 🔄 리액티브 프로그래밍
+- **☕ Java 21**
+- **🍃 Spring Boot 3**
+- **☁️ Spring Cloud Netflix Eureka Server**
+- **📊 Spring Actuator** (상태 모니터링)
 
-- **⚡ 비동기 처리**: 스레드 차단 없는 효율적 요청 처리
-- **📊 Mono/Flux**: 0~1개(Mono) 또는 0~N개(Flux) 데이터의 비동기 처리
-- **📡 이벤트 기반**: 데이터 스트림과 변경 전파 기반 패러다임
+## 🧩 주요 구성 요소
+
+- **🏛️ EurekaServerApplication**: 서비스 레지스트리 메인 클래스 (`@EnableEurekaServer`)
+- **⚙️ 설정 파일**: 서비스 자체 등록 비활성화 및 기타 설정
+
+## 📝 설정 내용
+
+```yaml
+server:
+  port: 8761  # Eureka 서버 표준 포트
+
+eureka:
+  client:
+    register-with-eureka: false  # 자기 자신을 등록하지 않음
+    fetch-registry: false  # 다른 서비스 목록을 가져오지 않음
+  server:
+    enable-self-preservation: true  # 자가 보존 모드 활성화
+```
 
 ## 🔄 동작 흐름
 
-1. 클라이언트 → API Gateway 요청
-2. 게이트웨이에서 토큰 검증
-3. 적절한 마이크로서비스로 라우팅
-4. 응답을 클라이언트에게 반환
+1. Eureka 서버 시작 (가장 먼저 실행되어야 함)
+2. 마이크로서비스들이 Eureka 서버에 자신의 정보 등록
+3. 클라이언트가 서비스 이름으로 서비스 검색
+4. Eureka가 해당 서비스의 인스턴스 목록 반환
+5. 클라이언트가 로드 밸런싱 알고리즘으로 인스턴스 선택하여 통신
 
-API Gateway는 마이크로서비스 시스템의 🚪 문지기 역할을 하며, 📡 클라이언트와 서비스 간 통신을 중개합니다.
+## 🌐 Eureka 대시보드
 
-## 📝 API 라우팅 규칙
-
-| 경로 패턴 | 대상 서비스 | 설명 |
-|----------|------------|------|
-| `/api/auth/**` | Auth Service | 인증 관련 요청 (로그인, 회원가입, 토큰 갱신) |
-| `/api/users/**` | User Service | 사용자 관리 요청 |
-| `/api/classes/**` | Class Service | 수업 및 강좌 관리 요청 |
-| `/actuator/**` | - | 모니터링 및 관리 엔드포인트 (공개) |
-
-## 🔒 보안 설정
-
-- **공개 엔드포인트**: 인증 없이 접근 가능한 경로
-  - `/api/auth/login`
-  - `/api/auth/register`
-  - `/api/auth/refreshtoken`
-  - `/oauth2/token`
-  - `/actuator`
-
-- **보안 헤더**: XSS 방지, HSTS, 참조자 정책 등 적용
+Eureka 서버는 웹 기반 대시보드를 제공하여 등록된 서비스 목록 및 상태를 시각적으로 확인할 수 있습니다:
+- URL: http://localhost:8761
+- 제공 정보:
+  - 인스턴스 ID
+  - 상태(UP/DOWN)
+  - 호스트명
+  - IP 주소
+  - 포트 번호
 
 ## 🛠️ 개발 및 실행 방법
 
-1. **실행 순서**:
-   ```bash
-   # 1. 서비스 레지스트리(Eureka Server) 실행
-   cd ../service-registry
-   ./gradlew bootRun
-   
-   # 2. API Gateway 실행
-   cd ../api-gateway
-   ./gradlew bootRun
-   ```
+### 로컬 개발 환경에서 실행:
 
-2. **서비스 등록 확인**:
-   - Eureka 대시보드 확인: http://localhost:8761
-   
-3. **API 테스트**:
-   - 게이트웨이 요청: http://localhost:8080/api/{service}/{endpoint}
+```bash
+./gradlew bootRun
+```
+
+### Docker 환경에서 실행:
+
+```bash
+docker build -t edu-erp-service-registry .
+docker run -p 8761:8761 edu-erp-service-registry
+```
+
+## 🔗 다른 서비스 연결 방법
+
+다른 마이크로서비스에서 Eureka 클라이언트를 설정하는 방법:
+
+```yaml
+# 다른 서비스의 application.yml 예시
+eureka:
+  client:
+    serviceUrl:
+      defaultZone: http://localhost:8761/eureka/
+  instance:
+    preferIpAddress: true
+```
+
+## 📚 관련 문서
+
+- [Spring Cloud Netflix](https://cloud.spring.io/spring-cloud-netflix/reference/html/)
+- [Service Discovery Pattern](https://microservices.io/patterns/service-registry.html)
+- [Eureka Wiki](https://github.com/Netflix/eureka/wiki)
